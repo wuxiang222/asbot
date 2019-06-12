@@ -3,6 +3,7 @@
  *  - https://github.com/chatie/wechaty
  */
 const { Wechaty } = require('wechaty')
+const db = require('./db.js')
 
 /* 生成二维码 */
 function onScan (qrcode, status) {
@@ -30,7 +31,28 @@ function onLogout(user) {
 
 /* 收到消息 */
 async function onMessage (msg) {
-  console.log(msg.toString())
+	const fromContact = msg.from()
+	const toContact = msg.to()
+	const text = msg.text()        //string
+	const date = msg.date().toISOString()
+	
+	let sql = null;
+	
+	const room = msg.room()
+	if (room) {
+		const topic = await room.topic()
+		sql = `insert into message (fromContact, toContact, text, room, date) values(
+			'${fromContact.name()}', '${toContact.name()}', '${text}', '${topic}', '${date}'
+		)`
+	} else {
+		sql = `insert into message (fromContact, toContact, text, date) values(
+			'${fromContact.name()}', '${toContact.name()}', '${text}', '${date}'
+		)`
+	}
+	
+	db.execute(sql, (result)=>{})
+	console.log(msg.toString())
+	
 }
 
 /* 收到添加好友 */

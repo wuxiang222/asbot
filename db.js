@@ -29,7 +29,9 @@ async function execute(sql, callback) {
     } catch (err) {
 		console.log(`执行 ${sql} 失败！`)
 		return console.error(err)
-    } 
+    } finally {
+		mssql.close()
+	}
 }
 
 mssql.on('err', err => {
