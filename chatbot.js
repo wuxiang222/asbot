@@ -4,6 +4,18 @@
  */
 const { Wechaty } = require('wechaty')
 const db = require('./db.js')
+const bot = new Wechaty()
+
+bot
+.on('scan',        onScan)
+.on('login',       onLogin)
+.on('logout',      onLogout)
+.on('message',     onMessage)
+.on('friendship',  onFriendship)
+.on('room-invite', onRoomInvite)
+.start()
+.then(() => console.log('Starter Bot Started.'))
+.catch(e => console.error(e))
 
 /* 生成二维码 */
 function onScan (qrcode, status) {
@@ -29,30 +41,34 @@ function onLogout(user) {
   console.log(`${user} logout**************************************************`)
 }
 
-/* 收到消息 */
+/* 收到消息处理 */
 async function onMessage (msg) {
-	const fromContact = msg.from()
-	const toContact = msg.to()
-	const text = msg.text()        //string
-	const date = msg.date().toISOString()
-	
-	let sql = null;
-	
-	const room = msg.room()
-	if (room) {
-		const topic = await room.topic()
-		sql = `insert into message (fromContact, toContact, text, room, date) values(
-			'${fromContact.name()}', '${toContact.name()}', '${text}', '${topic}', '${date}'
-		)`
-	} else {
-		sql = `insert into message (fromContact, toContact, text, date) values(
-			'${fromContact.name()}', '${toContact.name()}', '${text}', '${date}'
-		)`
+	// 判断是文本信息
+	if(msg.type() == bot.Message.Type.Text){
+		db.save(msg, ()=>{
+			// 发送http请求，获取信息回复
+			const request = require('request');
+			const url = 'http://oa.vviivv.com/vivOAApi/api/ShipApi/'+msg.text().trim()
+			request(encodeURI(url), function(error, response, body){
+				if(!error && response.statusCode == 200){
+					if ( body && body !=='null' ) {
+						
+						let reply = "";
+						let jsonString = JSON.parse(body);
+						let jsonObj = JSON.parse(jsonString);
+						for ( v of jsonObj){
+		
+							reply += `船名: ${v.ShipName}   联系人: ${v.ShipOwnerName}   联系电话: ${v.ShipOwnerPhone}`+'\n'
+						
+						}
+						msg.from().say(reply);
+					}
+				}
+			})	
+		})
 	}
 	
-	db.execute(sql, (result)=>{})
-	console.log(msg.toString())
-	
+	// console.log(msg.toString())
 }
 
 /* 收到添加好友 */
@@ -64,16 +80,3 @@ async function onFriendship(friendship) {
 async function onRoomInvite(invitation) {
   await roomInvitation.accept()
 }
-
-const bot = new Wechaty()
-
-bot
-.on('scan',        onScan)
-.on('login',       onLogin)
-.on('logout',      onLogout)
-.on('message',     onMessage)
-.on('friendship',  onFriendship)
-.on('room-invite', onRoomInvite)
-.start()
-.then(() => console.log('Starter Bot Started.'))
-.catch(e => console.error(e))

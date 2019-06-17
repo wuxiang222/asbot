@@ -27,7 +27,7 @@ async function execute(sql, callback) {
 		callback(result)
 		return result;
     } catch (err) {
-		console.log(`执行 ${sql} 失败！`)
+		console.log(`执行 "${sql}" 语句失败！`)
 		return console.error(err)
     } finally {
 		mssql.close()
@@ -39,4 +39,34 @@ mssql.on('err', err => {
    return console.error(err)
 });
 
-exports.execute = execute;
+async function save(msg, callback){
+	const fromContact = msg.from()
+	const toContact = msg.to()
+	const text = msg.text()        //string
+	const date = msg.date().toISOString()
+	const room = msg.room()
+	
+	
+	
+	let sql = null;	
+	if (room) {
+		const topic = await room.topic()
+		sql = `insert into message (fromContact, toContact, text, room, date) values(
+			'${fromContact.name()}', '${toContact.name()}', '${text}', '${topic}', '${date}'
+		)`
+	} else {
+		sql = `insert into message (fromContact, toContact, text, date) values(
+			'${fromContact.name()}', '${toContact.name()}', '${text}', '${date}'
+		)`
+	}
+	await execute(sql, result => {
+		console.log(result)
+	});
+	
+	
+	callback();
+	
+}
+let db = {}
+db.save = save;
+module.exports = db;
